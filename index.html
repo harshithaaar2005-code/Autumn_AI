@@ -9,9 +9,9 @@
         :root { --autumn-blue: #0078d4; --bg: #0b0b0b; --sidebar: #111; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        /* Sidebar */
         #sidebar { width: 280px; background: var(--sidebar); display: flex; flex-direction: column; padding: 15px; border-right: 1px solid #333; height: 100vh; }
-        .new-chat-btn { border: 1px solid #444; padding: 12px; border-radius: 6px; cursor: pointer; text-align: center; margin-bottom: 20px; font-weight: bold; background: #1a1a1a; transition: 0.3s; }
+        #user-display { font-size: 0.9rem; color: var(--autumn-blue); margin-bottom: 15px; font-weight: bold; }
+        .new-chat-btn { border: 1px solid #444; padding: 12px; border-radius: 6px; cursor: pointer; text-align: center; margin-bottom: 20px; font-weight: bold; background: #1a1a1a; }
         .new-chat-btn:hover { background: #222; border-color: var(--autumn-blue); }
         
         #history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
@@ -22,17 +22,16 @@
         }
         .history-item:hover { border-color: var(--autumn-blue); }
         .history-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-        .del-btn { opacity: 0.4; margin-left: 10px; cursor: pointer; }
+        .del-btn { opacity: 0.4; font-size: 0.9rem; padding: 2px 8px; }
         .del-btn:hover { color: #ff4d4d; opacity: 1; }
 
-        /* Main View */
         #main { flex: 1; display: flex; flex-direction: column; height: 100vh; position: relative; }
-        #top-nav { position: sticky; top: 0; background: #000; z-index: 100; border-bottom: 1px solid #333; }
         
-        /* UNSHAKABLE HEADER WITH GREEN LIGHT */
+        /* UNSHAKABLE MIDDLE HEADER */
+        #top-nav { position: sticky; top: 0; background: #000; z-index: 100; border-bottom: 1px solid #333; }
         header { padding: 15px; display: flex; justify-content: center; align-items: center; gap: 12px; }
         #status-dot { width: 10px; height: 10px; background: #555; border-radius: 50%; transition: 0.5s; }
-        header h1 { margin: 0; color: var(--autumn-blue); font-size: 1.2rem; letter-spacing: 2px; text-transform: uppercase; }
+        header h1 { margin: 0; color: var(--autumn-blue); font-size: 1.2rem; letter-spacing: 2px; text-transform: uppercase; text-align: center; }
 
         #memory-container { padding: 5px 25%; background: #000; }
         .meter-bg { width: 100%; height: 4px; background: #222; border-radius: 2px; }
@@ -52,7 +51,7 @@
 <body>
 
     <div id="sidebar">
-        <div id="user-display" style="font-size: 0.9rem; color: var(--autumn-blue); margin-bottom: 15px; font-weight: bold;"></div>
+        <div id="user-display">👤 Loading...</div>
         <div class="new-chat-btn" onclick="createNewChat()">+ New Chat</div>
         <div style="font-size: 0.7rem; color: #555; margin-bottom: 10px; letter-spacing: 1px;">HISTORY</div>
         <div id="history-list"></div>
@@ -69,7 +68,7 @@
             </div>
         </div>
         <div id="chat-window"></div>
-        <div id="status" style="font-size:0.7rem; color:#555; text-align:center;">Initializing...</div>
+        <div id="status" style="font-size:0.7rem; color:#555; text-align:center;">Initializing Local Engine...</div>
         <div class="input-container">
             <div class="input-box">
                 <label for="file-input" class="icon-btn">📎</label>
@@ -95,36 +94,30 @@
         const model = "Llama-3.2-1B-Instruct-q4f16_1-MLC"; 
 
         async function init() {
-            // Check for User Name (Simulated Account)
-            let userName = localStorage.getItem("autumn_user");
-            if (!userName) {
-                userName = prompt("Welcome! Please enter your name to create your local profile:");
-                localStorage.setItem("autumn_user", userName || "User");
-            }
-            document.getElementById("user-display").innerText = `👤 ${userName}`;
+            let user = localStorage.getItem("autumn_user") || prompt("Enter name:") || "User";
+            localStorage.setItem("autumn_user", user);
+            document.getElementById("user-display").innerText = `👤 ${user}`;
 
             renderHistory();
             try {
                 engine = await CreateMLCEngine(model, {
-                    initProgressCallback: (r) => { status.innerText = `Hardware Link: ${Math.round(r.progress * 100)}%`; }
+                    initProgressCallback: (r) => { status.innerText = `Loading: ${Math.round(r.progress * 100)}%`; }
                 });
-                // TURN ON GREEN LIGHT
                 statusDot.style.background = "#2ecc71";
                 statusDot.style.boxShadow = "0 0 10px #2ecc71";
-                status.innerText = "✓ 100% Offline & Secure";
+                status.innerText = "✓ Offline Mode Ready";
                 input.disabled = false;
                 sendBtn.disabled = false;
-                loadActiveChat();
-            } catch (e) { status.innerText = "Error: WebGPU access denied."; }
+            } catch (e) { status.innerText = "Error: Use Chrome."; }
         }
 
         async function handleChat() {
             const text = input.value.trim();
             if (!text) return;
 
-            // FIX: Set dynamic title based on the first question (like Chris Grey)
+            // UPDATE MIDDLE NAME DYNAMICALLY
             if (chatWindow.innerHTML === "") {
-                chatTitle.innerText = text.length > 20 ? text.substring(0, 20) + "..." : text;
+                chatTitle.innerText = text.length > 25 ? text.substring(0, 25) + "..." : text;
             }
 
             chatWindow.innerHTML += `<div class="msg user">${text}</div>`;
@@ -136,11 +129,9 @@
                 content: msg.innerText
             }));
 
-            const reply = await engine.chat.completions.create({ 
-                messages: [{role: "system", content: "You are Autumn-AI. Give structured, professional help."}, ...messages] 
-            });
-            
+            const reply = await engine.chat.completions.create({ messages: [{role: "system", content: "You are Autumn-AI."}, ...messages] });
             chatWindow.innerHTML += `<div class="msg ai">${marked.parse(reply.choices[0].message.content)}</div>`;
+            
             saveChat(chatTitle.innerText);
             updateMemory();
             chatWindow.scrollTop = chatWindow.scrollHeight;
@@ -187,8 +178,7 @@
 
         function updateMemory() {
             const current = chatWindow.innerText.length;
-            const limit = 8000; // Expanded Memory Window
-            memoryBar.style.width = Math.min((current/limit)*100, 100) + "%";
+            memoryBar.style.width = Math.min((current/8000)*100, 100) + "%";
         }
 
         window.createNewChat = () => { sessionStorage.removeItem("active_id"); location.reload(); };
